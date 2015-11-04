@@ -44,7 +44,7 @@ ln -s ~/rotobot/vegasdb.py
 ```
 nfldb-update --interval 86400
 ```
-6. Start the long running `vegasdb.py` process to keep your nfl data up to date (use a separate window in screen or something). This script is buggy and crashes sometimes when the source data doesn't behave as expected. It occasionally needs to be restarted manually. It dumps the input that broke it to badinput.html, which you could inspect and test with if you feel motivated to try and fix the problem.
+6. Start the long running `vegasdb.py` process to keep the vegas line data up to date (use a separate window in screen or something). This script is buggy and crashes sometimes when the source data doesn't behave as expected. It occasionally needs to be restarted manually. It dumps the input that broke it to badinput.html, which you could inspect and test with if you feel motivated to try and fix the problem.
 ```
 cd ~/rotobot
 python vegasdb.py
