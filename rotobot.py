@@ -179,18 +179,21 @@ def duck_search(query):
     query = query.replace('!', '')
     uri = 'http://duckduckgo.com/html/?q=%s&kl=uk-en' % query
     bytes = web.get(uri)
-    if 'web-result"' in bytes:  # filter out the adds on top of the page
-        bytes = bytes.split('web-result"')[1]
-    m = r_duck.search(bytes)
-    if m:
-        return web.decode(m.group(1))
+#    if 'web-result"' in bytes:  # filter out the ads on top of the page
+#        bytes = bytes.split('web-result"')[1]
+#    m = r_duck.search(bytes)
+#    if m:
+#        return web.decode(m.group(1))
+    urls = [web.decode(x) for x in r_duck.findall(bytes)]
+    return urls
 
 def get_player_page(name):
-    uri = duck_search('rotoworld %s' % name)
-    if not uri.startswith('http://www.rotoworld.com'):
+    urls = duck_search('rotoworld %s' % name)
+    urls = filter(lambda x : 'rotoworld.com' in x and '/nfl/' in x, urls)
+    if len(urls) == 0:
         return None
     
-    r = requests.get(uri)
+    r = requests.get(urls[0])
     return r.text
 
 @sopel.module.commands('roto')
