@@ -189,7 +189,10 @@ def duck_search(query):
 
 def get_player_page(name):
     urls = duck_search('rotoworld %s' % name)
-    urls = filter(lambda x : 'rotoworld.com' in x and '/nfl/' in x, urls)
+    if name != 'jake butt' and name != 'butt':
+        urls = filter(lambda x : 'rotoworld.com' in x and '/nfl/' in x, urls)
+    else:
+        urls = filter(lambda x : 'rotoworld.com' in x, urls)
     if len(urls) == 0:
         return None
     
