@@ -6,6 +6,7 @@ import time
 import nfldb
 import requests
 from StringIO import StringIO
+import traceback
 
 class VegasDb(object):
     schema = '''
@@ -100,67 +101,90 @@ ORDER BY ABS(lines.spread_visitor) DESC;
             results_d.append(r)
         return results_d
 
+def parseEvent(e):
+    if e.find('participants/participant/contestantnum').text == '999':
+        return None
+    gametime = e.find('event_datetimeGMT').text
+    gamenumber = e.find('gamenumber').text
+    home_participant = None
+    visiting_participant = None
+    for p in e.findall('participants/participant'):
+        visiting_home_draw = p.find('visiting_home_draw').text
+        participant = p.find('participant_name').text
+        if visiting_home_draw == 'Visiting':
+            visiting_participant = participant
+        elif visiting_home_draw == 'Home':
+            home_participant = participant
+            period = e.find('periods/period[1]')
+    if period is None:
+        spread_v, spread_h, total = None, None, None
+    else:
+        spread_visiting = period.find('spread/spread_visiting')
+        spread_home = None
+        if spread_visiting is not None:
+            spread_v = float(spread_visiting.text)
+        else:
+            spread_v = None
+            spread_home = period.find('spread/spread_home')
+        if spread_home is not None:
+            spread_h = float(spread_home.text)
+        else:
+            spread_h = None
+            total_points = period.find('total/total_points')
+        if total_points is not None:
+            total = float(total_points.text)
+        else:
+            total = None
+    return {
+        'gamenumber': gamenumber,
+        'gametime': gametime,
+        'home_participant': home_participant,
+        'visiting_participant': visiting_participant,
+        'spread_h': spread_h,
+        'spread_v': spread_v,
+        'total': total
+    }
+    
 def main():
     db = VegasDb('vegas.db')
+    r = None
     
-    while True:
-        payload = {'sporttype': 'football', 'sportsubtype': 'NFL'}
-        timestamp = db.get_timestamp()
-#        if timestamp is not None:
-#            payload['last'] = timestamp
-
-        r = requests.get('http://xml.pinnaclesports.com/pinnacleFeed.aspx', params=payload)
-        if r.status_code != 200:
-            raise 'feed request returned status code %d' % r.status_code
-        
-        db.update_timestamp()
-        timestamp = db.get_timestamp()
-        
-#        root = etree.parse('pinnacleFeed.rss')
-        root = etree.parse(StringIO(r.content))
-        events = root.findall('//event')
-
-        for e in events:
-            if e.find('participants/participant/contestantnum').text == '999':
-                continue
-            gametime = e.find('event_datetimeGMT').text
-            gamenumber = e.find('gamenumber').text
-            home_participant = None
-            visiting_participant = None
-            for p in e.findall('participants/participant'):
-                visiting_home_draw = p.find('visiting_home_draw').text
-                participant = p.find('participant_name').text
-                if visiting_home_draw == 'Visiting':
-                    visiting_participant = participant
-                elif visiting_home_draw == 'Home':
-                    home_participant = participant
-            period = e.find('periods/period[1]')
-            if period is None:
-                spread_v, spread_h, total = None, None, None
-            else:
-#                if period.find('period_description').text != 'Game':
-#                    with open('badinput.html', 'w') as f:
-#                        f.write(r.content)
-#                    raise 'Incorrect assumption that Game period will always be first period'
-                spread_visiting = period.find('spread/spread_visiting')
-                if spread_visiting is not None:
-                    spread_v = float(spread_visiting.text)
-                else:
-                    spread_v = None
-                spread_home = period.find('spread/spread_home')
-                if spread_home is not None:
-                    spread_h = float(spread_home.text)
-                else:
-                    spread_h = None
-                total_points = period.find('total/total_points')
-                if total_points is not None:
-                    total = float(total_points.text)
-                else:
-                    total = None
-            db.add_line(gamenumber, gametime, home_participant, visiting_participant, spread_h, spread_v, total, timestamp)
-            print '%s: Added %s (%+0.1f) @ %s (%+0.1f) %0.1fo/u' % (datetime.now(), visiting_participant, spread_v if spread_v is not None else 0, home_participant, spread_h if spread_h is not None else 0, total if total is not None else 0)
-
-        time.sleep(20 * 60) # 20 minutes
+    try:
+        while True:
+            payload = {'sporttype': 'football', 'sportsubtype': 'NFL'}
+     
+            r = requests.get('http://xml.pinnaclesports.com/pinnacleFeed.aspx', params=payload)
+            if r.status_code != 200:
+                raise 'feed request returned status code %d' % r.status_code
+            
+            db.update_timestamp()
+            timestamp = db.get_timestamp()
+            
+    #        root = etree.parse('pinnacleFeed.rss')
+            root = etree.parse(StringIO(r.content))
+            events = root.findall('//event')
+     
+            for e in events:
+                parsed = parseEvent(e)
+                if parsed is None:
+                    continue
+                gamenumber = parsed['gamenumber']
+                gametime = parsed['gametime']
+                home_participant = parsed['home_participant']
+                visiting_participant = parsed['visiting_participant']
+                spread_h = parsed['spread_h']
+                spread_v = parsed['spread_v']
+                total = parsed['total']
+                db.add_line(gamenumber, gametime, home_participant, visiting_participant, spread_h, spread_v, total, timestamp)
+                print '%s: Added %s (%+0.1f) @ %s (%+0.1f) %0.1fo/u' % (datetime.now(), visiting_participant, spread_v if spread_v is not None else 0, home_participant, spread_h if spread_h is not None else 0, total if total is not None else 0)
+     
+            time.sleep(20 * 60) # 20 minutes
+    except:
+        traceback.print_exc()
+        if r is not None:
+            with open('badinput.html', 'w') as f:
+                f.write(r.content)
+            print "Wrote badinput.html"
 
 if __name__ == '__main__':
     main()
