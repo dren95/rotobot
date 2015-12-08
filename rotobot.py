@@ -153,9 +153,8 @@ def check_roto(bot):
                     if not bot.running:
                         raise 'failed'
                     print '%s: %s -- %s' % (datetime.now(), entry.title, entry.link)
-                    db.log_visited(entry.guid, entry.title)
                     spoke = True
-                except e:
+                except Exception as e:
                     print e
                     retries -= 1
                     if retries > 0:
@@ -163,6 +162,7 @@ def check_roto(bot):
                     else:
                         print 'failed'
                         raise
+        db.log_visited(entry.guid, entry.title)
 
 r_bing = re.compile(r'<h2><a href="([^"]+)"')
 
