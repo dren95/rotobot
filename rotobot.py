@@ -192,7 +192,7 @@ def get_player_page(name):
     if name != 'jake butt' and name != 'butt':
         urls = filter(lambda x : 'rotoworld.com' in x and '/nfl/' in x, urls)
     else:
-        urls = filter(lambda x : 'rotoworld.com' in x, urls)
+        urls = filter(lambda x : ('rotoworld.com' in x) and (x != 'http://www.rotoworld.com/'), urls)
     if len(urls) == 0:
         return None
     
